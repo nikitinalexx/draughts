@@ -12,18 +12,19 @@ import static com.alex.nikitin.server.model.Constants.BOARD_SIZE;
 public class Board {
     private Checker[][] position;
     private boolean isWhiteTurn;
+    private boolean reversed;
 
     public Board() {
-        isWhiteTurn = true;
+        isWhiteTurn = false;
         position = new Checker[][]{
                 {NONE, BLACK, NONE, BLACK, NONE, BLACK, NONE, BLACK},
                 {BLACK, NONE, BLACK, NONE, BLACK, NONE, BLACK, NONE},
                 {NONE, BLACK, NONE, BLACK, NONE, BLACK, NONE, BLACK},
                 {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
-                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
-                {WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE},
+                {NONE, WHITE, NONE, NONE, NONE, NONE, NONE, NONE},
+                {WHITE, NONE, BLACK, NONE, WHITE, NONE, WHITE, NONE},
                 {NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE},
-                {WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE}
+                {WHITE, NONE, WHITE, NONE, NONE, NONE, WHITE, NONE}
         };
     }
 
@@ -48,6 +49,7 @@ public class Board {
                 }
             }
         }
+        this.reversed = reversed;
     }
 
     public Checker[][] getPosition() {
@@ -145,13 +147,13 @@ public class Board {
 
     private void applyMoveToBoard(Board board, Move move) {
         Checker checker = board.position[move.getStartX()][move.getStartY()];
-        if (move.getEndX() == 0) {
-            if (checker == Checker.WHITE) {
-                checker = Checker.WHITE_QUEEN;
-            }
-            if (checker == Checker.BLACK) {
-                checker = Checker.BLACK_QUEEN;
-            }
+
+        if (move.getEndX() == 0 && checker == Checker.WHITE) {
+            checker = Checker.WHITE_QUEEN;
+        }
+
+        if ((board.reversed && move.getEndX() == 0 || !board.reversed && move.getEndX() == BOARD_SIZE - 1) && checker == Checker.BLACK) {
+            checker = Checker.BLACK_QUEEN;
         }
 
         board.position[move.getStartX()][move.getStartY()] = Checker.NONE;
@@ -179,7 +181,7 @@ public class Board {
         int minY = Math.min(move.getStartY(), move.getEndY());
         int maxY = Math.max(move.getStartY(), move.getEndY());
 
-        boolean isQueen = getChecker(move) == BLACK_QUEEN || getChecker(move) == WHITE_QUEEN;
+        boolean isQueen = board.getChecker(move) == BLACK_QUEEN || board.getChecker(move) == WHITE_QUEEN;
         if (!isQueen && (maxX - minX != 2 || maxY - minY != 2)) {
             return false;
         }
@@ -258,14 +260,12 @@ public class Board {
 
     private int getNumberOfKills(Board board, int minX, int minY, int maxX, int maxY) {
         int count = 0;
-        for (int i = minX + 1; i < maxX; i++) {
-            for (int j = minY + 1; j < maxY; j++) {
-                if (isWhiteTurn && (board.position[i][j] == BLACK || board.position[i][j] == BLACK_QUEEN)) {
-                    count++;
-                }
-                if (!isWhiteTurn && (board.position[i][j] == WHITE || board.position[i][j] == WHITE_QUEEN)) {
-                    count++;
-                }
+        for (int i = minX + 1, j = minY + 1; i < maxX && j < maxY; i++, j++) {
+            if (isWhiteTurn && (board.position[i][j] == BLACK || board.position[i][j] == BLACK_QUEEN)) {
+                count++;
+            }
+            if (!isWhiteTurn && (board.position[i][j] == WHITE || board.position[i][j] == WHITE_QUEEN)) {
+                count++;
             }
         }
 

@@ -12,6 +12,13 @@ public class Move {
         this.endY = endY;
     }
 
+    public Move(Move move) {
+        this.startX = move.startX;
+        this.startY = move.startY;
+        this.endX = move.endX;
+        this.endY = move.endY;
+    }
+
     public int getStartX() {
         return startX;
     }
@@ -41,5 +48,21 @@ public class Move {
                 ", endX=" + endX +
                 ", endY=" + endY +
                 '}';
+    }
+
+    public void setStartX(int startX) {
+        this.startX = startX;
+    }
+
+    public void setStartY(int startY) {
+        this.startY = startY;
+    }
+
+    public void setEndX(int endX) {
+        this.endX = endX;
+    }
+
+    public void setEndY(int endY) {
+        this.endY = endY;
     }
 }

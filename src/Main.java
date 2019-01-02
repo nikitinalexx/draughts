@@ -1,10 +1,15 @@
 import com.alex.nikitin.server.MyCanvas;
 import com.alex.nikitin.server.Server;
+import com.alex.nikitin.server.model.Constants;
 import com.alex.nikitin.server.model.Game;
 import com.alex.nikitin.server.model.Move;
 
 import javax.swing.*;
 
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -23,22 +28,34 @@ public class Main {
         window.getContentPane().add(new MyCanvas(game));
         window.setVisible(true);
 
-        Scanner scanner = new Scanner(System.in);
+        List<Move> moves = new ArrayList<>();
+        Move move = new Move(-1, -1, -1, -1);
 
-        while(true) {
-            String line = scanner.nextLine();
-            String[] splitted = line.split(" ");
-            List<Move> moves = new ArrayList<>();
-            for (int i = 0; i < splitted.length; i += 4) {
-                Move move = new Move(parseInt(splitted[i]),
-                        parseInt(splitted[i + 1]),
-                        parseInt(splitted[i + 2]),
-                        parseInt(splitted[i + 3]));
-                moves.add(move);
+        window.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (move.getStartX() == -1) {
+                    move.setStartX(e.getY() / Constants.ONE_RECTANGLE_SIZE);
+                    move.setStartY(e.getX() / Constants.ONE_RECTANGLE_SIZE);
+                    System.out.println(move);
+                } else {
+                    move.setEndX(e.getY() / Constants.ONE_RECTANGLE_SIZE);
+                    move.setEndY(e.getX() / Constants.ONE_RECTANGLE_SIZE);
+                    System.out.println(move);
+                    moves.add(new Move(move));
+                    move.setStartX(-1);
+                    move.setStartY(-1);
+                    move.setEndX(-1);
+                    move.setEndY(-1);
+                }
             }
-            game.performMove(moves);
+        });
+
+        window.addMouseWheelListener(e -> {
+            game.performMove(new ArrayList<>(moves));
+            moves.clear();
             window.repaint();
-        }
+        });
     }
 
 }
