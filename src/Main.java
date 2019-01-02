@@ -1,23 +1,24 @@
 import com.alex.nikitin.server.MyCanvas;
 import com.alex.nikitin.server.Server;
+import com.alex.nikitin.server.ai.ZeroAlpha;
 import com.alex.nikitin.server.model.Constants;
-import com.alex.nikitin.server.model.Game;
+import com.alex.nikitin.server.Game;
 import com.alex.nikitin.server.model.Move;
+import com.alex.nikitin.server.model.Player;
 
 import javax.swing.*;
 
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 import static com.alex.nikitin.server.model.Constants.*;
 import static java.lang.Integer.parseInt;
 
 public class Main {
+    private static final boolean SINGLE_PLAYER = false;
 
     public static void main(String[] args) throws InterruptedException {
         Game game = Server.createNewGame();
@@ -28,6 +29,23 @@ public class Main {
         window.getContentPane().add(new MyCanvas(game));
         window.setVisible(true);
 
+        if (SINGLE_PLAYER) {
+            playSinglePlayerGame(game, window);
+        } else {
+            ZeroAlpha white = new ZeroAlpha(game, Player.WHITE);
+            ZeroAlpha black = new ZeroAlpha(game, Player.BLACK);
+            while (game.whoWon() == null) {
+                game.performMove(white.getMoves());
+                window.repaint();
+                Thread.sleep(1000);
+                game.performMove(black.getMoves());
+                window.repaint();
+                Thread.sleep(1000);
+            }
+        }
+    }
+
+    private static void playSinglePlayerGame(Game game, Window window) {
         List<Move> moves = new ArrayList<>();
         Move move = new Move(-1, -1, -1, -1);
 
@@ -52,9 +70,11 @@ public class Main {
         });
 
         window.addMouseWheelListener(e -> {
-            game.performMove(new ArrayList<>(moves));
-            moves.clear();
-            window.repaint();
+            if (!moves.isEmpty()) {
+                game.performMove(new ArrayList<>(moves));
+                moves.clear();
+                window.repaint();
+            }
         });
     }
 

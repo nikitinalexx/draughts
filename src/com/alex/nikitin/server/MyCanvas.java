@@ -2,7 +2,6 @@ package com.alex.nikitin.server;
 
 import com.alex.nikitin.server.model.Board;
 import com.alex.nikitin.server.model.Checker;
-import com.alex.nikitin.server.model.Game;
 
 import javax.swing.*;
 import java.awt.*;
@@ -28,7 +27,7 @@ public class MyCanvas extends JComponent {
             for (int j = 0; j < BOARD_SIZE; j++) {
                 Color color = null;
                 if (positions[i][j] == Checker.WHITE || positions[i][j] == Checker.WHITE_QUEEN) {
-                    color = Color.WHITE;
+                    color = Color.PINK;
                 } else if (positions[i][j] == Checker.BLACK || positions[i][j] == Checker.BLACK_QUEEN) {
                     color = Color.BLACK;
                 }

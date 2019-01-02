@@ -1,4 +1,9 @@
-package com.alex.nikitin.server.model;
+package com.alex.nikitin.server;
+
+import com.alex.nikitin.server.model.Board;
+import com.alex.nikitin.server.model.Constants;
+import com.alex.nikitin.server.model.Move;
+import com.alex.nikitin.server.model.Player;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +19,14 @@ public class Game {
 
     public Board getCurrentBoard() {
         return board;
+    }
+
+    public Board getBoardOfPlayer(Player player) {
+        switch(player) {
+            case BLACK: return board.getReversedBoard();
+            case WHITE: return getCurrentBoard();
+        }
+        return null;
     }
 
     public void performMove(List<Move> moves) {
