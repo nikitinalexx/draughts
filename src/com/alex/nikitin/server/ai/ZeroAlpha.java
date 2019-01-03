@@ -20,6 +20,9 @@ public class ZeroAlpha {
 
     public List<Move> getMoves() {
         List<List<Move>> moves = game.getBoardOfPlayer(player).getPossibleMoves();
+        if (moves.isEmpty()) {
+            System.out.println("You called me but I have no moves, " + player + ", " + game.getBoardOfPlayer(player));
+        }
         int r = random.nextInt(moves.size());
         return moves.get(r);
     }

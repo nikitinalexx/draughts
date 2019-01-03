@@ -19,31 +19,52 @@ import static java.lang.Integer.parseInt;
 
 public class Main {
     private static final boolean SINGLE_PLAYER = false;
+    private static final int SLEEP_TIME = 0;
+    private static final int NUMBER_OF_GAMES = 100000;
 
     public static void main(String[] args) throws InterruptedException {
-        Game game = Server.createNewGame();
+
 
         JFrame window = new JFrame();
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.setBounds(30, 30, BOARD_WIDTH + X_OFFSET, BOARD_WIDTH + Y_OFFSET);
-        window.getContentPane().add(new MyCanvas(game));
         window.setVisible(true);
 
         if (SINGLE_PLAYER) {
-            playSinglePlayerGame(game, window);
+            playSinglePlayerGame(Server.createNewGame(), window);
         } else {
-            ZeroAlpha white = new ZeroAlpha(game, Player.WHITE);
-            ZeroAlpha black = new ZeroAlpha(game, Player.BLACK);
-            while (game.whoWon() == null) {
-                window.repaint();
-                Thread.sleep(1000);
-                game.performMove(white.getMoves());
-                window.repaint();
-                Thread.sleep(1000);
-                game.performMove(black.getMoves());
-                window.repaint();
-                Thread.sleep(1000);
+            int whiteWon = 0;
+            int blackWon = 0;
+            int draw = 0;
+
+            for (int i = 0; i < NUMBER_OF_GAMES; i++) {
+                window.getContentPane().removeAll();
+                Game game = Server.createNewGame();
+                window.getContentPane().add(new MyCanvas(game));
+                window.setVisible(true);
+
+                ZeroAlpha white = new ZeroAlpha(game, Player.WHITE);
+                ZeroAlpha black = new ZeroAlpha(game, Player.BLACK);
+                Player winner;
+                while ((winner = game.whoWon()) == null) {
+                    Thread.sleep(SLEEP_TIME);
+                    if (game.getCurrentBoard().isWhiteTurn()) {
+                        game.performMove(white.getMoves());
+                    } else {
+                        game.performMove(black.getMoves());
+                    }
+                    window.repaint();
+                }
+                if (winner == Player.BLACK) {
+                    blackWon++;
+                } else if (winner == Player.WHITE){
+                    whiteWon++;
+                } else if (winner == Player.DRAW) {
+                    draw++;
+                }
+                System.out.println("Black " + blackWon + ". White " + whiteWon + ". Draw " + draw);
             }
+
         }
     }
 

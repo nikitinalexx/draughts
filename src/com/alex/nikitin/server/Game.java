@@ -1,5 +1,6 @@
 package com.alex.nikitin.server;
 
+import com.alex.nikitin.server.ai.ZeroAlpha;
 import com.alex.nikitin.server.model.Board;
 import com.alex.nikitin.server.model.Constants;
 import com.alex.nikitin.server.model.Move;
@@ -7,6 +8,8 @@ import com.alex.nikitin.server.model.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.alex.nikitin.server.model.Constants.MOVES_BEFORE_DRAW;
 
 public class Game {
     private List<Board> positions = new ArrayList<>();
@@ -44,12 +47,24 @@ public class Game {
             return Player.WHITE;
         }
 
-        //check if anyone is fully blocked then another won
+        if (getCurrentBoard().isWhiteTurn() && getBoardOfPlayer(Player.WHITE).getPossibleMoves().isEmpty()) {
+            return Player.BLACK;
+        }
 
-        //last 3 times the same position, то ничья
-        //соотношение сил не поменялось за 15 ходов, и ни одна простая фишка не сделала хода, то ничья
+        if (!getCurrentBoard().isWhiteTurn() && getBoardOfPlayer(Player.BLACK).getPossibleMoves().isEmpty()) {
+            return Player.WHITE;
+        }
 
-        //TODO
-        return null;//noone won yet
+        if (positions.size() <= MOVES_BEFORE_DRAW) {
+            return null;
+        }
+        for (int i = 0; i < MOVES_BEFORE_DRAW; i++) {
+            Board previous = positions.get(positions.size() - 2 - i);
+            if (previous.valueChanged(board)) {
+                return null;
+            }
+        }
+
+        return Player.DRAW;
     }
 }

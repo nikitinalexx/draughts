@@ -17,4 +17,6 @@ public class Constants {
 
     public static final int CHECKER_OFFSET = 25;
     public static final int DOT_OFFSET = 21;
+
+    public static final int MOVES_BEFORE_DRAW = 15;
 }

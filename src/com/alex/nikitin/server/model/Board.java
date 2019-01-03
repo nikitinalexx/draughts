@@ -19,29 +19,24 @@ public class Board {
     public Board() {
         isWhiteTurn = true;
         position = new Checker[][]{
-                /*
                 {NONE, BLACK, NONE, BLACK, NONE, BLACK, NONE, BLACK},
                 {BLACK, NONE, BLACK, NONE, BLACK, NONE, BLACK, NONE},
                 {NONE, BLACK, NONE, BLACK, NONE, BLACK, NONE, BLACK},
                 {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
-                {NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE},
+                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
                 {WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE},
                 {NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE},
-                {WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE}*/
-                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
-                {NONE, BLACK, NONE, NONE, NONE, NONE, NONE, NONE},
-                {NONE, NONE, WHITE, NONE, NONE, NONE, NONE, NONE},
-                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
-                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
-                {NONE, NONE, NONE, NONE, NONE, WHITE_QUEEN, NONE, NONE},
-                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
-                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
+                {WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE}
         };
     }
 
     public Board(Board board) {
         this(board, false);
         isWhiteTurn = board.isWhiteTurn;
+    }
+
+    public boolean isWhiteTurn() {
+        return isWhiteTurn;
     }
 
     private Board(Board board, boolean reversedForTest) {
@@ -107,7 +102,8 @@ public class Board {
     public Board performMove(List<Move> moves) {
         if (!movesAreValid(moves)) {
             System.out.println("Move is not valid");
-            return this;
+            System.out.println(Arrays.deepToString(position));
+            throw new RuntimeException();
         }
         Board newBoard = new Board(this);
 
@@ -181,7 +177,7 @@ public class Board {
             }
         }
 
-        if (enteredKillingMode && shouldKill(newBoard)) {
+        if (enteredKillingMode && shouldKillSpecificChecker(newBoard, moves.get(moves.size() - 1))) {
             System.out.println("You can kill more checkers");
             return false;
         }
@@ -203,42 +199,40 @@ public class Board {
         board.position[move.getStartX()][move.getStartY()] = Checker.NONE;
         board.position[move.getEndX()][move.getEndY()] = checker;
 
-
-
-        int minX = Math.min(move.getStartX(), move.getEndX());
-        int maxX = Math.max(move.getStartX(), move.getEndX());
-
-        int minY = Math.min(move.getStartY(), move.getEndY());
-        int maxY = Math.max(move.getStartY(), move.getEndY());
-
-        for (int i = minX + 1, j = minY + 1; i < maxX && j < maxY; i++, j++) {
+        boolean iIsPlus = (move.getStartX() - move.getEndX()) < 0;
+        boolean jIsPlus = (move.getStartY() - move.getEndY()) < 0;
+        for (int i = move.getStartX() + (iIsPlus ? 1 : -1), j = move.getStartY() + (jIsPlus ? 1 : -1);
+             (iIsPlus && i < move.getEndX() || !iIsPlus && i > move.getEndX()) && (jIsPlus && j < move.getEndY() || !jIsPlus && j > move.getEndY());
+             i += (iIsPlus ? 1 : -1), j += (jIsPlus ? 1 : -1)) {
             board.position[i][j] = Checker.NONE;
         }
     }
 
-    private boolean isValidKillMove(Board board, Move move) {
-        int minX = Math.min(move.getStartX(), move.getEndX());
-        int maxX = Math.max(move.getStartX(), move.getEndX());
-
-        int minY = Math.min(move.getStartY(), move.getEndY());
-        int maxY = Math.max(move.getStartY(), move.getEndY());
-
-        boolean isQueen = board.getChecker(move) == BLACK_QUEEN || board.getChecker(move) == WHITE_QUEEN;
-        if (!isQueen && (maxX - minX != 2 || maxY - minY != 2)) {
-            return false;
+    private boolean shouldKillSpecificChecker(Board newBoard, Move move) {
+        Checker checker = newBoard.position[move.getEndX()][move.getEndY()];
+        if (newBoard.isWhiteTurn && checker == WHITE || !newBoard.isWhiteTurn && checker == BLACK) {
+            List<Move> possibleKillMoves = getUsualCheckerPossibleKillMoves(move.getEndX(), move.getEndY());
+            for (Move possibleKillMove : possibleKillMoves) {
+                if (isValidKillMove(newBoard, possibleKillMove)) {
+                    return true;
+                }
+            }
         }
-
-        if (board.position[move.getEndX()][move.getEndY()] != Checker.NONE) {
-            return false;
+        if (newBoard.isWhiteTurn && checker == WHITE_QUEEN || !newBoard.isWhiteTurn && checker == BLACK_QUEEN) {
+            List<Move> possibleKillMoves = getQueenCheckerPossibleKillMoves(move.getEndX(), move.getEndY());
+            for (Move possibleKillMove : possibleKillMoves) {
+                if (isValidKillMove(newBoard, possibleKillMove)) {
+                    return true;
+                }
+            }
         }
-
-        return getNumberOfKills(board, minX, minY, maxX, maxY) == 1;
+        return false;
     }
 
     private boolean shouldKill(Board newBoard) {
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
-                if (isWhiteTurn && newBoard.position[i][j] == WHITE || !isWhiteTurn && newBoard.position[i][j] == BLACK) {
+                if (newBoard.isWhiteTurn && newBoard.position[i][j] == WHITE || !newBoard.isWhiteTurn && newBoard.position[i][j] == BLACK) {
                     List<Move> possibleKillMoves = getUsualCheckerPossibleKillMoves(i, j);
                     for (Move possibleKillMove : possibleKillMoves) {
                         if (isValidKillMove(newBoard, possibleKillMove)) {
@@ -246,7 +240,7 @@ public class Board {
                         }
                     }
                 }
-                if (isWhiteTurn && newBoard.position[i][j] == WHITE_QUEEN || !isWhiteTurn && newBoard.position[i][j] == BLACK_QUEEN) {
+                if (newBoard.isWhiteTurn && newBoard.position[i][j] == WHITE_QUEEN || !newBoard.isWhiteTurn && newBoard.position[i][j] == BLACK_QUEEN) {
                     List<Move> possibleKillMoves = getQueenCheckerPossibleKillMoves(i, j);
                     for (Move possibleKillMove : possibleKillMoves) {
                         if (isValidKillMove(newBoard, possibleKillMove)) {
@@ -281,15 +275,11 @@ public class Board {
         return result.stream().filter(Move::isValid).collect(Collectors.toList());
     }
 
-    private boolean isValidNonKillMove(Board board, Move move) {
-        int minX = Math.min(move.getStartX(), move.getEndX());
-        int maxX = Math.max(move.getStartX(), move.getEndX());
+    private boolean isValidKillMove(Board board, Move move) {
 
-        int minY = Math.min(move.getStartY(), move.getEndY());
-        int maxY = Math.max(move.getStartY(), move.getEndY());
 
-        boolean isQueen = getChecker(move) == BLACK_QUEEN || getChecker(move) == WHITE_QUEEN;
-        if (!isQueen && (move.getStartX() - move.getEndX() != 1 || maxY - minY != 1)) {
+        boolean isQueen = board.getChecker(move) == BLACK_QUEEN || board.getChecker(move) == WHITE_QUEEN;
+        if (!isQueen && (Math.abs(move.getStartX() - move.getEndX()) != 2 || Math.abs(move.getStartY() - move.getEndY()) != 2)) {
             return false;
         }
 
@@ -297,25 +287,54 @@ public class Board {
             return false;
         }
 
-        return getNumberOfAnyKills(board, minX, minY, maxX, maxY) == 0;
+        return getNumberOfKills(board, move) == 1;
     }
 
-    private int getNumberOfKills(Board board, int minX, int minY, int maxX, int maxY) {
+    private boolean isValidNonKillMove(Board board, Move move) {
+        boolean isQueen = board.getChecker(move) == BLACK_QUEEN || board.getChecker(move) == WHITE_QUEEN;
+        if (!isQueen && (Math.abs(move.getStartX() - move.getEndX()) != 1 || Math.abs(move.getStartY() - move.getEndY()) != 1)) {
+            return false;
+        }
+
+        if (board.position[move.getEndX()][move.getEndY()] != Checker.NONE) {
+            return false;
+        }
+
+        return getNumberOfAnyKills(board, move) == 0;
+    }
+
+    private int getNumberOfKills(Board board, Move move) {
         int count = 0;
-        for (int i = minX + 1, j = minY + 1; i < maxX && j < maxY; i++, j++) {
-            if (board.isWhiteTurn && (board.position[i][j] == BLACK || board.position[i][j] == BLACK_QUEEN)) {
-                count++;
-            }
-            if (!board.isWhiteTurn && (board.position[i][j] == WHITE || board.position[i][j] == WHITE_QUEEN)) {
-                count++;
+        boolean iIsPlus = (move.getStartX() - move.getEndX()) < 0;
+        boolean jIsPlus = (move.getStartY() - move.getEndY()) < 0;
+        for (int i = move.getStartX() + (iIsPlus ? 1 : -1), j = move.getStartY() + (jIsPlus ? 1 : -1);
+             (iIsPlus && i < move.getEndX() || !iIsPlus && i > move.getEndX()) && (jIsPlus && j < move.getEndY() || !jIsPlus && j > move.getEndY());
+             i += (iIsPlus ? 1 : -1), j += (jIsPlus ? 1 : -1)) {
+            Checker checker = board.position[i][j];
+            if (board.isWhiteTurn) {
+                if (checker == WHITE || checker == WHITE_QUEEN) {
+                    return -1;
+                } else if (checker == BLACK || checker == BLACK_QUEEN) {
+                    count++;
+                }
+            } else {
+                if (checker == BLACK || checker == BLACK_QUEEN) {
+                    return -1;
+                } else if (checker == WHITE || checker == WHITE_QUEEN) {
+                    count++;
+                }
             }
         }
         return count;
     }
 
-    private int getNumberOfAnyKills(Board board, int minX, int minY, int maxX, int maxY) {
+    private int getNumberOfAnyKills(Board board, Move move) {
         int count = 0;
-        for (int i = minX + 1, j = minY + 1; i < maxX && j < maxY; i++, j++) {
+        boolean iIsPlus = (move.getStartX() - move.getEndX()) < 0;
+        boolean jIsPlus = (move.getStartY() - move.getEndY()) < 0;
+        for (int i = move.getStartX() + (iIsPlus ? 1 : -1), j = move.getStartY() + (jIsPlus ? 1 : -1);
+             (iIsPlus && i < move.getEndX() || !iIsPlus && i > move.getEndX()) && (jIsPlus && j < move.getEndY() || !jIsPlus && j > move.getEndY());
+             i += (iIsPlus ? 1 : -1), j += (jIsPlus ? 1 : -1)) {
             if (board.position[i][j] != NONE) {
                 count++;
             }
@@ -454,6 +473,38 @@ public class Board {
             moves.add(currentMoves);
         }
 
+    }
+
+    public boolean valueChanged(Board board) {
+        int firstWhiteQueenCount = 0;
+        int firstBlackQueenCount = 0;
+        int secondWhiteQueenCount = 0;
+        int secondBlackQueenCount = 0;
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                Checker first = position[i][j];
+                Checker second = board.position[i][j];
+                if (first == BLACK && second != BLACK) {
+                    return true;
+                }
+                if (first == WHITE && second != WHITE) {
+                    return true;
+                }
+                if (first == WHITE_QUEEN) {
+                    firstWhiteQueenCount++;
+                }
+                if (first == BLACK_QUEEN) {
+                    firstBlackQueenCount++;
+                }
+                if (second == WHITE_QUEEN) {
+                    secondWhiteQueenCount++;
+                }
+                if (second == BLACK_QUEEN) {
+                    secondBlackQueenCount++;
+                }
+            }
+        }
+        return (firstWhiteQueenCount != secondWhiteQueenCount) || (firstBlackQueenCount != secondBlackQueenCount);
     }
 }
 /*
