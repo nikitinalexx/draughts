@@ -19,6 +19,7 @@ public class Board {
     public Board() {
         isWhiteTurn = true;
         position = new Checker[][]{
+                /*
                 {NONE, BLACK, NONE, BLACK, NONE, BLACK, NONE, BLACK},
                 {BLACK, NONE, BLACK, NONE, BLACK, NONE, BLACK, NONE},
                 {NONE, BLACK, NONE, BLACK, NONE, BLACK, NONE, BLACK},
@@ -26,12 +27,21 @@ public class Board {
                 {NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE},
                 {WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE},
                 {NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE},
-                {WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE}
+                {WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE}*/
+                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
+                {NONE, BLACK, NONE, NONE, NONE, NONE, NONE, NONE},
+                {NONE, NONE, WHITE, NONE, NONE, NONE, NONE, NONE},
+                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
+                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
+                {NONE, NONE, NONE, NONE, NONE, WHITE_QUEEN, NONE, NONE},
+                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
+                {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE},
         };
     }
 
     public Board(Board board) {
         this(board, false);
+        isWhiteTurn = board.isWhiteTurn;
     }
 
     private Board(Board board, boolean reversedForTest) {
@@ -102,7 +112,7 @@ public class Board {
         Board newBoard = new Board(this);
 
         moves.forEach((Move move) -> applyMoveToBoard(newBoard, move));
-        newBoard.isWhiteTurn = !isWhiteTurn;
+        newBoard.isWhiteTurn = !newBoard.isWhiteTurn;
 
         return newBoard;
     }
@@ -137,6 +147,7 @@ public class Board {
 
         boolean needReversed = !isWhiteTurn;
         Board newBoard = new Board(this, needReversed);
+        newBoard.isWhiteTurn = this.isWhiteTurn;
         if (needReversed) {
             moves = reversedMoves(moves);
         }
@@ -286,20 +297,29 @@ public class Board {
             return false;
         }
 
-        return getNumberOfKills(board, minX, minY, maxX, maxY) == 0;
+        return getNumberOfAnyKills(board, minX, minY, maxX, maxY) == 0;
     }
 
     private int getNumberOfKills(Board board, int minX, int minY, int maxX, int maxY) {
         int count = 0;
         for (int i = minX + 1, j = minY + 1; i < maxX && j < maxY; i++, j++) {
-            if (isWhiteTurn && (board.position[i][j] == BLACK || board.position[i][j] == BLACK_QUEEN)) {
+            if (board.isWhiteTurn && (board.position[i][j] == BLACK || board.position[i][j] == BLACK_QUEEN)) {
                 count++;
             }
-            if (!isWhiteTurn && (board.position[i][j] == WHITE || board.position[i][j] == WHITE_QUEEN)) {
+            if (!board.isWhiteTurn && (board.position[i][j] == WHITE || board.position[i][j] == WHITE_QUEEN)) {
                 count++;
             }
         }
+        return count;
+    }
 
+    private int getNumberOfAnyKills(Board board, int minX, int minY, int maxX, int maxY) {
+        int count = 0;
+        for (int i = minX + 1, j = minY + 1; i < maxX && j < maxY; i++, j++) {
+            if (board.position[i][j] != NONE) {
+                count++;
+            }
+        }
         return count;
     }
 
@@ -323,15 +343,8 @@ public class Board {
         if (shouldKill(board)) {
             for (int i = 0; i < BOARD_SIZE; i++) {
                 for (int j = 0; j < BOARD_SIZE; j++) {
-                    List<Move> usualKillMoves;
-                    while (!(usualKillMoves = getUsualKillMoves(board, i, j)).isEmpty()) {
-
-                    }
-
-                    List<Move> queenMoves;
-                    while (!(queenMoves = getQueenKillMoves(board, i, j)).isEmpty()) {
-
-                    }
+                    List<List<Move>> usualKillMoves = getKillMoves(board, i, j);
+                    possibleMoves.addAll(usualKillMoves);
                 }
             }
         } else {
@@ -381,54 +394,66 @@ public class Board {
         return possibleMoves;
     }
 
-    private List<Move> getUsualKillMoves(Board board, int i, int j) {
-        List<Move> possibleMoves = new ArrayList<>();
+    private List<List<Move>> getKillMoves(Board board, int i, int j) {
+        List<List<Move>> possibleMoves = new ArrayList<>();
         Move move;
         if (board.position[i][j] == WHITE) {
             move = new Move(i, j, i - 2, j -2);
             if (move.isValid() && isValidKillMove(board, move)) {
-                possibleMoves.add(move);
+                getKillMovesRecursively(board, move, possibleMoves, i - 2, j - 2);
             }
             move = new Move(i, j, i - 2, j + 2);
             if (move.isValid() && isValidKillMove(board, move)) {
-                possibleMoves.add(move);
+                getKillMovesRecursively(board, move, possibleMoves, i - 2, j + 2);
             }
             move = new Move(i, j, i + 2, j - 2);
             if (move.isValid() && isValidKillMove(board, move)) {
-                possibleMoves.add(move);
+                getKillMovesRecursively(board, move, possibleMoves, i + 2, j - 2);
             }
             move = new Move(i, j, i + 2, j + 2);
             if (move.isValid() && isValidKillMove(board, move)) {
-                possibleMoves.add(move);
+                getKillMovesRecursively(board, move, possibleMoves, i + 2, j + 2);
+            }
+        }
+        if (board.position[i][j] == WHITE_QUEEN) {
+            for (int k = 1; k < BOARD_SIZE - 1; k++) {
+                move = new Move(i, j, i - 1 - k, j - 1 - k);
+                if (move.isValid() && isValidKillMove(board, move)) {
+                    getKillMovesRecursively(board, move, possibleMoves, i - 1 - k, j - 1 - k);
+                }
+                move = new Move(i, j, i - 1 - k, j + 1 + k);
+                if (move.isValid() && isValidKillMove(board, move)) {
+                    getKillMovesRecursively(board, move, possibleMoves, i - 1 - k, j + 1 + k);
+                }
+                move = new Move(i, j, i + 1 + k, j - 1 - k);
+                if (move.isValid() && isValidKillMove(board, move)) {
+                    getKillMovesRecursively(board, move, possibleMoves, i + 1 + k, j - 1 - k);
+                }
+                move = new Move(i, j, i + 1 + k, j + 1 + k);
+                if (move.isValid() && isValidKillMove(board, move)) {
+                    getKillMovesRecursively(board, move, possibleMoves, i + 1 + k, j + 1 + k);
+                }
             }
         }
         return possibleMoves;
     }
 
-    private List<Move> getQueenKillMoves(Board board, int i, int j) {
-        List<Move> possibleMoves = new ArrayList<>();
-        Move move;
-        if (board.position[i][j] == WHITE_QUEEN) {
-            for (int k = 1; k < BOARD_SIZE - 1; k++) {
-                move = new Move(i, j, i - 1 - k, j - 1 - k);
-                if (move.isValid() && isValidKillMove(board, move)) {
-                    possibleMoves.add(move);
-                }
-                move = new Move(i, j, i - 1 - k, j + 1 + k);
-                if (move.isValid() && isValidKillMove(board, move)) {
-                    possibleMoves.add(move);
-                }
-                move = new Move(i, j, i + 1 + k, j - 1 - k);
-                if (move.isValid() && isValidKillMove(board, move)) {
-                    possibleMoves.add(move);
-                }
-                move = new Move(i, j, i + 1 + k, j + 1 + k);
-                if (move.isValid() && isValidKillMove(board, move)) {
-                    possibleMoves.add(move);
-                }
+    private void getKillMovesRecursively(Board board, Move move, List<List<Move>> moves, int x, int y) {
+        List<Move> currentMoves = Collections.singletonList(move);
+
+        Board anotherBoard = new Board(board);
+        applyMoveToBoard(anotherBoard, move);
+        List<List<Move>> anotherResult = getKillMoves(anotherBoard, x, y);
+        if (!anotherResult.isEmpty()) {
+            for (List<Move> anotherList : anotherResult) {
+                List<Move> result = new ArrayList<>(currentMoves);
+                result.addAll(anotherList);
+                moves.add(result);
             }
+        } else {
+            moves.add(currentMoves);
         }
-        return possibleMoves;
+
     }
 }
 /*

@@ -35,6 +35,8 @@ public class Main {
             ZeroAlpha white = new ZeroAlpha(game, Player.WHITE);
             ZeroAlpha black = new ZeroAlpha(game, Player.BLACK);
             while (game.whoWon() == null) {
+                window.repaint();
+                Thread.sleep(1000);
                 game.performMove(white.getMoves());
                 window.repaint();
                 Thread.sleep(1000);
