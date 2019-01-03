@@ -1,10 +1,6 @@
 package com.alex.nikitin.server;
 
-import com.alex.nikitin.server.ai.ZeroAlpha;
-import com.alex.nikitin.server.model.Board;
-import com.alex.nikitin.server.model.Constants;
-import com.alex.nikitin.server.model.Move;
-import com.alex.nikitin.server.model.Player;
+import com.alex.nikitin.server.model.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,59 +8,63 @@ import java.util.List;
 import static com.alex.nikitin.server.model.Constants.MOVES_BEFORE_DRAW;
 
 public class Game {
-    private List<Board> positions = new ArrayList<>();
-    private Board board;
+    private List<ChangeableBoard> positions = new ArrayList<>();
+    private ChangeableBoard currentBoard;
 
     public Game() {
-        board = new Board();
-        positions.add(board);
+        currentBoard = new ChangeableBoard();
+        positions.add(currentBoard);
     }
 
-    public Board getCurrentBoard() {
-        return board;
+    public ChangeableBoard getCurrentBoard() {
+        return currentBoard;
     }
 
-    public Board getBoardOfPlayer(Player player) {
-        switch(player) {
-            case BLACK: return board.getReversedBoard();
-            case WHITE: return getCurrentBoard();
-        }
-        return null;
+    public List<List<Move>> getPossibleMoves() {
+        return getCurrentBoard().getPossibleMoves();
     }
 
     public void performMove(List<Move> moves) {
-        Board newBoard = board.performMove(moves);
+        ChangeableBoard newBoard = currentBoard.performMove(moves);
         positions.add(newBoard);
-        board = newBoard;
+        currentBoard = newBoard;
     }
 
-    public Player whoWon() {
-        if (!board.anyLeft(Constants.WHITE_CHECKERS)) {
+    public static Player whoWon(ChangeableBoard changeableBoard) {
+        if (!BoardHelper.anyLeft(changeableBoard, Constants.WHITE_CHECKERS)) {
             return Player.BLACK;
         }
 
-        if (!board.anyLeft(Constants.BLACK_CHECKERS)) {
+        if (!BoardHelper.anyLeft(changeableBoard, Constants.BLACK_CHECKERS)) {
             return Player.WHITE;
         }
 
-        if (getCurrentBoard().isWhiteTurn() && getBoardOfPlayer(Player.WHITE).getPossibleMoves().isEmpty()) {
+        if (changeableBoard.isWhiteTurn() && changeableBoard.getPossibleMoves().isEmpty()) {
             return Player.BLACK;
         }
 
-        if (!getCurrentBoard().isWhiteTurn() && getBoardOfPlayer(Player.BLACK).getPossibleMoves().isEmpty()) {
+        if (!changeableBoard.isWhiteTurn() && changeableBoard.getReversedBoard().getPossibleMoves().isEmpty()) {
             return Player.WHITE;
         }
 
-        if (positions.size() <= MOVES_BEFORE_DRAW) {
+        if (changeableBoard.getNumberInSequence() <= MOVES_BEFORE_DRAW) {
             return null;
         }
+
+        ChangeableBoard current = changeableBoard;
         for (int i = 0; i < MOVES_BEFORE_DRAW; i++) {
-            Board previous = positions.get(positions.size() - 2 - i);
-            if (previous.valueChanged(board)) {
+            ChangeableBoard previous = current.getParent();
+            if (BoardHelper.valueChanged(current, previous)) {
                 return null;
             }
+            current = previous;
         }
 
         return Player.DRAW;
     }
+
+    public Player whoWon() {
+        return whoWon(currentBoard);
+    }
+
 }

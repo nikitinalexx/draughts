@@ -10,13 +10,15 @@ import java.util.stream.Stream;
 import static com.alex.nikitin.server.model.Checker.*;
 import static com.alex.nikitin.server.model.Constants.BOARD_SIZE;
 
-public class Board {
+public class ChangeableBoard {
     private Checker[][] position;
     private boolean isWhiteTurn;
     private boolean reversedForTest;
     private boolean generatedMovesShouldBeReversed = false;
+    private ChangeableBoard parent;
+    private int numberInSequence;
 
-    public Board() {
+    public ChangeableBoard() {
         isWhiteTurn = true;
         position = new Checker[][]{
                 {NONE, BLACK, NONE, BLACK, NONE, BLACK, NONE, BLACK},
@@ -28,41 +30,56 @@ public class Board {
                 {NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE},
                 {WHITE, NONE, WHITE, NONE, WHITE, NONE, WHITE, NONE}
         };
+        numberInSequence = 0;
     }
 
-    public Board(Board board) {
-        this(board, false);
-        isWhiteTurn = board.isWhiteTurn;
-    }
-
-    public boolean isWhiteTurn() {
-        return isWhiteTurn;
-    }
-
-    private Board(Board board, boolean reversedForTest) {
+    public ChangeableBoard(ChangeableBoard source) {
         position = new Checker[8][];
-        if (!reversedForTest) {
-            for (int i = 0; i < BOARD_SIZE; i++) {
-                position[i] = Arrays.copyOf(board.position[i], BOARD_SIZE);
-            }
-        } else {
-            for (int i = 0; i < BOARD_SIZE; i++) {
-                position[BOARD_SIZE - 1 - i] = Arrays.copyOf(board.position[i], BOARD_SIZE);
-                for (int j = 0; j < BOARD_SIZE / 2; j++) {
-                    Checker temp = position[BOARD_SIZE - 1 - i][j];
-                    position[BOARD_SIZE - 1 - i][j] = position[BOARD_SIZE - 1 - i][BOARD_SIZE - 1 - j];
-                    position[BOARD_SIZE - 1 - i][BOARD_SIZE - 1 - j] = temp;
-                }
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            position[i] = Arrays.copyOf(source.position[i], BOARD_SIZE);
+        }
+        isWhiteTurn = source.isWhiteTurn;
+        reversedForTest = source.reversedForTest;
+        generatedMovesShouldBeReversed = source.generatedMovesShouldBeReversed;
+        parent = source;
+        numberInSequence = source.numberInSequence + 1;
+    }
+
+    private ChangeableBoard(ChangeableBoard source, boolean reversedForTest) {
+        position = new Checker[8][];
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            position[i] = Arrays.copyOf(source.position[i], BOARD_SIZE);
+        }
+
+        if (reversedForTest) {
+            revertPositions(source, this);
+            this.reversedForTest = true;
+        }
+        isWhiteTurn = source.isWhiteTurn;
+    }
+
+    public ChangeableBoard getReversedBoard() {
+        ChangeableBoard target = new ChangeableBoard(this);
+        revertPositions(this, target);
+        target.reversedForTest = false;
+        target.isWhiteTurn = true;
+        target.generatedMovesShouldBeReversed = true;
+        revertColours(target);
+        return target;
+    }
+
+    private void revertPositions(ChangeableBoard source, ChangeableBoard target) {
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            target.position[BOARD_SIZE - 1 - i] = Arrays.copyOf(source.position[i], BOARD_SIZE);
+            for (int j = 0; j < BOARD_SIZE / 2; j++) {
+                Checker temp = target.position[BOARD_SIZE - 1 - i][j];
+                target.position[BOARD_SIZE - 1 - i][j] = target.position[BOARD_SIZE - 1 - i][BOARD_SIZE - 1 - j];
+                target.position[BOARD_SIZE - 1 - i][BOARD_SIZE - 1 - j] = temp;
             }
         }
-        this.reversedForTest = reversedForTest;
     }
 
-    public Board getReversedBoard() {
-        Board board = new Board(this, true);
-        board.reversedForTest = false;
-        board.isWhiteTurn = true;
-        board.generatedMovesShouldBeReversed = true;
+    private static void revertColours(ChangeableBoard board) {
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
                 switch(board.position[i][j]) {
@@ -81,36 +98,111 @@ public class Board {
                 }
             }
         }
-        return board;
     }
 
     public Checker[][] getPosition() {
         return position;
     }
 
-    public boolean anyLeft(List<Checker> validCheckers) {
+    public List<List<Move>> getPossibleMoves() {
+        ChangeableBoard reversedBoard;
+        if (isWhiteTurn()) {
+            reversedBoard = this;
+        } else {
+            reversedBoard = this.getReversedBoard();
+        }
+
+        ChangeableBoard board = new ChangeableBoard(reversedBoard);
+
+        List<List<Move>> possibleMoves = new ArrayList<>();
+
+        if (shouldKill(board)) {
+            for (int i = 0; i < BOARD_SIZE; i++) {
+                for (int j = 0; j < BOARD_SIZE; j++) {
+                    List<List<Move>> usualKillMoves = getKillMoves(board, i, j);
+                    possibleMoves.addAll(usualKillMoves);
+                }
+            }
+        } else {
+            for (int i = 0; i < BOARD_SIZE; i++) {
+                for (int j = 0; j < BOARD_SIZE; j++) {
+                    Move move;
+                    if (board.getPosition()[i][j] == WHITE) {
+                        move = new Move(i, j, i - 1, j -1);
+                        if (move.isValid() && isValidNonKillMove(board, move)) {
+                            possibleMoves.add(Collections.singletonList(move));
+                        }
+                        move = new Move(i, j, i - 1, j + 1);
+                        if (move.isValid() && isValidNonKillMove(board, move)) {
+                            possibleMoves.add(Collections.singletonList(move));
+                        }
+                    }
+
+                    if (board.getPosition()[i][j] == WHITE_QUEEN) {
+                        for (int k = 1; k < BOARD_SIZE - 1; k++) {
+                            move = new Move(i, j, i - 1 - k, j - 1 - k);
+                            if (move.isValid() && isValidNonKillMove(board, move)) {
+                                possibleMoves.add(Collections.singletonList(move));
+                            }
+                            move = new Move(i, j, i - 1 - k, j + 1 + k);
+                            if (move.isValid() && isValidNonKillMove(board, move)) {
+                                possibleMoves.add(Collections.singletonList(move));
+                            }
+                            move = new Move(i, j, i + 1 + k, j - 1 - k);
+                            if (move.isValid() && isValidNonKillMove(board, move)) {
+                                possibleMoves.add(Collections.singletonList(move));
+                            }
+                            move = new Move(i, j, i + 1 + k, j + 1 + k);
+                            if (move.isValid() && isValidNonKillMove(board, move)) {
+                                possibleMoves.add(Collections.singletonList(move));
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+
+        if (board.generatedMovesShouldBeReversed) {
+            possibleMoves = possibleMoves.stream().map(BoardHelper::reversedMoves).collect(Collectors.toList());
+        }
+
+        return possibleMoves;
+    }
+
+    public static boolean shouldKill(ChangeableBoard newBoard) {
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
-                if (validCheckers.contains(position[i][j])) {
-                    return true;
+                if (newBoard.isWhiteTurn && newBoard.position[i][j] == WHITE || !newBoard.isWhiteTurn && newBoard.position[i][j] == BLACK) {
+                    List<Move> possibleKillMoves = getUsualCheckerPossibleKillMoves(i, j);
+                    for (Move possibleKillMove : possibleKillMoves) {
+                        if (isValidKillMove(newBoard, possibleKillMove)) {
+                            return true;
+                        }
+                    }
+                }
+                if (newBoard.isWhiteTurn && newBoard.position[i][j] == WHITE_QUEEN || !newBoard.isWhiteTurn && newBoard.position[i][j] == BLACK_QUEEN) {
+                    List<Move> possibleKillMoves = getQueenCheckerPossibleKillMoves(i, j);
+                    for (Move possibleKillMove : possibleKillMoves) {
+                        if (isValidKillMove(newBoard, possibleKillMove)) {
+                            return true;
+                        }
+                    }
                 }
             }
         }
         return false;
     }
 
-    public Board performMove(List<Move> moves) {
+
+    public ChangeableBoard performMove(List<Move> moves) {
         if (!movesAreValid(moves)) {
             System.out.println("Move is not valid");
             System.out.println(Arrays.deepToString(position));
             throw new RuntimeException();
         }
-        Board newBoard = new Board(this);
 
-        moves.forEach((Move move) -> applyMoveToBoard(newBoard, move));
-        newBoard.isWhiteTurn = !newBoard.isWhiteTurn;
-
-        return newBoard;
+        return BoardFactory.makeAMove(this, moves);
     }
 
     private boolean movesAreValid(List<Move> moves) {
@@ -142,8 +234,8 @@ public class Board {
         }
 
         boolean needReversed = !isWhiteTurn;
-        Board newBoard = new Board(this, needReversed);
-        newBoard.isWhiteTurn = this.isWhiteTurn;
+        ChangeableBoard newBoard = new ChangeableBoard(this, needReversed);
+
         if (needReversed) {
             moves = reversedMoves(moves);
         }
@@ -185,7 +277,7 @@ public class Board {
         return true;
     }
 
-    private void applyMoveToBoard(Board board, Move move) {
+    public static void applyMoveToBoard(ChangeableBoard board, Move move) {
         Checker checker = board.position[move.getStartX()][move.getStartY()];
 
         if (move.getEndX() == 0 && checker == Checker.WHITE) {
@@ -208,7 +300,7 @@ public class Board {
         }
     }
 
-    private boolean shouldKillSpecificChecker(Board newBoard, Move move) {
+    private boolean shouldKillSpecificChecker(ChangeableBoard newBoard, Move move) {
         Checker checker = newBoard.position[move.getEndX()][move.getEndY()];
         if (newBoard.isWhiteTurn && checker == WHITE || !newBoard.isWhiteTurn && checker == BLACK) {
             List<Move> possibleKillMoves = getUsualCheckerPossibleKillMoves(move.getEndX(), move.getEndY());
@@ -229,31 +321,7 @@ public class Board {
         return false;
     }
 
-    private boolean shouldKill(Board newBoard) {
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                if (newBoard.isWhiteTurn && newBoard.position[i][j] == WHITE || !newBoard.isWhiteTurn && newBoard.position[i][j] == BLACK) {
-                    List<Move> possibleKillMoves = getUsualCheckerPossibleKillMoves(i, j);
-                    for (Move possibleKillMove : possibleKillMoves) {
-                        if (isValidKillMove(newBoard, possibleKillMove)) {
-                            return true;
-                        }
-                    }
-                }
-                if (newBoard.isWhiteTurn && newBoard.position[i][j] == WHITE_QUEEN || !newBoard.isWhiteTurn && newBoard.position[i][j] == BLACK_QUEEN) {
-                    List<Move> possibleKillMoves = getQueenCheckerPossibleKillMoves(i, j);
-                    for (Move possibleKillMove : possibleKillMoves) {
-                        if (isValidKillMove(newBoard, possibleKillMove)) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private List<Move> getUsualCheckerPossibleKillMoves(int x, int y) {
+    private static List<Move> getUsualCheckerPossibleKillMoves(int x, int y) {
         Move first = new Move(x, y, x - 2, y - 2);
         Move second = new Move(x, y, x - 2, y + 2);
         Move third = new Move(x, y, x + 2, y - 2);
@@ -262,7 +330,7 @@ public class Board {
         return Stream.of(first, second, third, fourth).filter(Move::isValid).collect(Collectors.toList());
     }
 
-    private List<Move> getQueenCheckerPossibleKillMoves(int x, int y) {
+    private static List<Move> getQueenCheckerPossibleKillMoves(int x, int y) {
         List<Move> result = new ArrayList<>();
 
         for (int i = 1; i < BOARD_SIZE - 1; i++) {
@@ -275,7 +343,7 @@ public class Board {
         return result.stream().filter(Move::isValid).collect(Collectors.toList());
     }
 
-    private boolean isValidKillMove(Board board, Move move) {
+    private static boolean isValidKillMove(ChangeableBoard board, Move move) {
 
 
         boolean isQueen = board.getChecker(move) == BLACK_QUEEN || board.getChecker(move) == WHITE_QUEEN;
@@ -290,7 +358,7 @@ public class Board {
         return getNumberOfKills(board, move) == 1;
     }
 
-    private boolean isValidNonKillMove(Board board, Move move) {
+    private static boolean isValidNonKillMove(ChangeableBoard board, Move move) {
         boolean isQueen = board.getChecker(move) == BLACK_QUEEN || board.getChecker(move) == WHITE_QUEEN;
         if (!isQueen && (Math.abs(move.getStartX() - move.getEndX()) != 1 || Math.abs(move.getStartY() - move.getEndY()) != 1)) {
             return false;
@@ -303,7 +371,7 @@ public class Board {
         return getNumberOfAnyKills(board, move) == 0;
     }
 
-    private int getNumberOfKills(Board board, Move move) {
+    private static int getNumberOfKills(ChangeableBoard board, Move move) {
         int count = 0;
         boolean iIsPlus = (move.getStartX() - move.getEndX()) < 0;
         boolean jIsPlus = (move.getStartY() - move.getEndY()) < 0;
@@ -328,7 +396,7 @@ public class Board {
         return count;
     }
 
-    private int getNumberOfAnyKills(Board board, Move move) {
+    private static int getNumberOfAnyKills(ChangeableBoard board, Move move) {
         int count = 0;
         boolean iIsPlus = (move.getStartX() - move.getEndX()) < 0;
         boolean jIsPlus = (move.getStartY() - move.getEndY()) < 0;
@@ -354,66 +422,7 @@ public class Board {
         ).collect(Collectors.toList());
     }
 
-    public List<List<Move>> getPossibleMoves() {
-        Board board = new Board(this);
-
-        List<List<Move>> possibleMoves = new ArrayList<>();
-
-        if (shouldKill(board)) {
-            for (int i = 0; i < BOARD_SIZE; i++) {
-                for (int j = 0; j < BOARD_SIZE; j++) {
-                    List<List<Move>> usualKillMoves = getKillMoves(board, i, j);
-                    possibleMoves.addAll(usualKillMoves);
-                }
-            }
-        } else {
-            for (int i = 0; i < BOARD_SIZE; i++) {
-                for (int j = 0; j < BOARD_SIZE; j++) {
-                    Move move;
-                    if (board.position[i][j] == WHITE) {
-                        move = new Move(i, j, i - 1, j -1);
-                        if (move.isValid() && isValidNonKillMove(board, move)) {
-                            possibleMoves.add(Collections.singletonList(move));
-                        }
-                        move = new Move(i, j, i - 1, j + 1);
-                        if (move.isValid() && isValidNonKillMove(board, move)) {
-                            possibleMoves.add(Collections.singletonList(move));
-                        }
-                    }
-
-                    if (board.position[i][j] == WHITE_QUEEN) {
-                        for (int k = 1; k < BOARD_SIZE - 1; k++) {
-                            move = new Move(i, j, i - 1 - k, j - 1 - k);
-                            if (move.isValid() && isValidNonKillMove(board, move)) {
-                                possibleMoves.add(Collections.singletonList(move));
-                            }
-                            move = new Move(i, j, i - 1 - k, j + 1 + k);
-                            if (move.isValid() && isValidNonKillMove(board, move)) {
-                                possibleMoves.add(Collections.singletonList(move));
-                            }
-                            move = new Move(i, j, i + 1 + k, j - 1 - k);
-                            if (move.isValid() && isValidNonKillMove(board, move)) {
-                                possibleMoves.add(Collections.singletonList(move));
-                            }
-                            move = new Move(i, j, i + 1 + k, j + 1 + k);
-                            if (move.isValid() && isValidNonKillMove(board, move)) {
-                                possibleMoves.add(Collections.singletonList(move));
-                            }
-                        }
-                    }
-
-                }
-            }
-        }
-
-        if (generatedMovesShouldBeReversed) {
-            possibleMoves = possibleMoves.stream().map(this::reversedMoves).collect(Collectors.toList());
-        }
-
-        return possibleMoves;
-    }
-
-    private List<List<Move>> getKillMoves(Board board, int i, int j) {
+    private List<List<Move>> getKillMoves(ChangeableBoard board, int i, int j) {
         List<List<Move>> possibleMoves = new ArrayList<>();
         Move move;
         if (board.position[i][j] == WHITE) {
@@ -457,10 +466,10 @@ public class Board {
         return possibleMoves;
     }
 
-    private void getKillMovesRecursively(Board board, Move move, List<List<Move>> moves, int x, int y) {
+    private void getKillMovesRecursively(ChangeableBoard board, Move move, List<List<Move>> moves, int x, int y) {
         List<Move> currentMoves = Collections.singletonList(move);
 
-        Board anotherBoard = new Board(board);
+        ChangeableBoard anotherBoard = new ChangeableBoard(board);
         applyMoveToBoard(anotherBoard, move);
         List<List<Move>> anotherResult = getKillMoves(anotherBoard, x, y);
         if (!anotherResult.isEmpty()) {
@@ -475,41 +484,20 @@ public class Board {
 
     }
 
-    public boolean valueChanged(Board board) {
-        int firstWhiteQueenCount = 0;
-        int firstBlackQueenCount = 0;
-        int secondWhiteQueenCount = 0;
-        int secondBlackQueenCount = 0;
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            for (int j = 0; j < BOARD_SIZE; j++) {
-                Checker first = position[i][j];
-                Checker second = board.position[i][j];
-                if (first == BLACK && second != BLACK) {
-                    return true;
-                }
-                if (first == WHITE && second != WHITE) {
-                    return true;
-                }
-                if (first == WHITE_QUEEN) {
-                    firstWhiteQueenCount++;
-                }
-                if (first == BLACK_QUEEN) {
-                    firstBlackQueenCount++;
-                }
-                if (second == WHITE_QUEEN) {
-                    secondWhiteQueenCount++;
-                }
-                if (second == BLACK_QUEEN) {
-                    secondBlackQueenCount++;
-                }
-            }
-        }
-        return (firstWhiteQueenCount != secondWhiteQueenCount) || (firstBlackQueenCount != secondBlackQueenCount);
+    public boolean isWhiteTurn() {
+        return isWhiteTurn;
     }
+
+    public void setWhiteTurn(boolean isWhiteTurn) {
+        this.isWhiteTurn = isWhiteTurn;
+    }
+
+    public ChangeableBoard getParent() {
+        return parent;
+    }
+
+    public int getNumberInSequence() {
+        return numberInSequence;
+    }
+
 }
-/*
-
-
-5 0 4 1
-2 1 3 2
- */

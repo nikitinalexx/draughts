@@ -1,6 +1,6 @@
 package com.alex.nikitin.server;
 
-import com.alex.nikitin.server.model.Board;
+import com.alex.nikitin.server.model.ChangeableBoard;
 import com.alex.nikitin.server.model.Checker;
 
 import javax.swing.*;
@@ -21,7 +21,7 @@ public class MyCanvas extends JComponent {
                 g.drawRect(i * ONE_RECTANGLE_SIZE, j * ONE_RECTANGLE_SIZE, ONE_RECTANGLE_SIZE, ONE_RECTANGLE_SIZE);
             }
         }
-        Board board = game.getCurrentBoard();
+        ChangeableBoard board = game.getCurrentBoard();
         Checker[][] positions = board.getPosition();
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {

@@ -43,16 +43,11 @@ public class Main {
                 window.getContentPane().add(new MyCanvas(game));
                 window.setVisible(true);
 
-                ZeroAlpha white = new ZeroAlpha(game, Player.WHITE);
-                ZeroAlpha black = new ZeroAlpha(game, Player.BLACK);
+                ZeroAlpha zeroAlpha = new ZeroAlpha(game, Player.WHITE);
                 Player winner;
                 while ((winner = game.whoWon()) == null) {
                     Thread.sleep(SLEEP_TIME);
-                    if (game.getCurrentBoard().isWhiteTurn()) {
-                        game.performMove(white.getMoves());
-                    } else {
-                        game.performMove(black.getMoves());
-                    }
+                    game.performMove(zeroAlpha.getMoves());
                     window.repaint();
                 }
                 if (winner == Player.BLACK) {
